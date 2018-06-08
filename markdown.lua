@@ -1,12 +1,12 @@
 #!/usr/bin/env lua
 
 --[[
-# markdown.lua -- version 0.31
+# markdown.lua -- version 0.32
 
 <http://www.frykholm.se/files/markdown.lua>
 
 **Author:** Niklas Frykholm, <niklas@frykholm.se>  
-**Date:** 25 Feb 2008
+**Date:** 31 May 2008
 
 This is an implementation of the popular text markup language Markdown in pure Lua.
 Markdown can convert documents written in a simple and easy to read text format
@@ -62,6 +62,8 @@ THE SOFTWARE.
 
 ## Version history
 
+-	**0.32** -- 31 May 2008
+	- Fix for links containing brackets
 -	**0.31** -- 1 Mar 2008
 	-	Fix for link definitions followed by spaces
 -	**0.30** -- 25 Feb 2008
@@ -889,7 +891,7 @@ end
 -- Handle image references
 function images(text)
 	local function reference_link(alt, id)
-		alt = encode_alt(alt:match("%[(.*)%]"))
+		alt = encode_alt(alt:match("%b[]"):sub(2,-2))
 		id = id:match("%[(.*)%]"):lower()
 		if id == "" then id = text:lower() end
 		link_database[id] = link_database[id] or {}
@@ -902,7 +904,7 @@ function images(text)
 	end
 	
 	local function inline_link(alt, link)
-		alt = encode_alt(alt:match("%[(.-)%]"))
+		alt = encode_alt(alt:match("%b[]"):sub(2,-2))
 		local url, title = link:match("%(<?(.-)>?[ \t]*['\"](.+)['\"]")
 		url = url or link:match("%(<?(.-)>?%)")
 		url = encode_alt(url)
@@ -922,8 +924,8 @@ end
 -- Handle anchor references
 function anchors(text)
 	local function reference_link(text, id)
-		text = text:match("%[(.*)%]")
-		id = id:match("%[(.*)%]"):lower()
+		text = text:match("%b[]"):sub(2,-2)
+		id = id:match("%b[]"):sub(2,-2):lower()
 		if id == "" then id = text:lower() end
 		link_database[id] = link_database[id] or {}
 		if not link_database[id].url then return nil end
@@ -935,7 +937,7 @@ function anchors(text)
 	end
 	
 	local function inline_link(text, link)
-		text = text:match("%[(.-)%]")
+		text = text:match("%b[]"):sub(2,-2)
 		local url, title = link:match("%(<?(.-)>?[ \t]*['\"](.+)['\"]")
 		title = encode_alt(title)
 		url  = url or  link:match("%(<?(.-)>?%)") or ""

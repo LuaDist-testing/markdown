@@ -1,15 +1,15 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "markdown"
-version = "0.31-1"
+version = "0.32-1"
 -- LuaDist source
 source = {
-  tag = "0.31-1",
+  tag = "0.32-1",
   url = "git://github.com/LuaDist-testing/markdown.git"
 }
 -- Original source
 -- source = {
---    url = "http://www.frykholm.se/files/markdown-0.31.tar.gz",
+--    url = "http://www.frykholm.se/files/markdown-0.32.tar.gz",
 --    dir = "."
 -- }
 description = {
