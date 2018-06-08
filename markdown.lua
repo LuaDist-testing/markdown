@@ -1,12 +1,12 @@
 #!/usr/bin/env lua
 
 --[[
-# markdown.lua -- version 0.26
+# markdown.lua -- version 0.27
 
 <http://www.frykholm.se/files/markdown.lua>
 
 **Author:** Niklas Frykholm, <niklas@frykholm.se>  
-**Date:** 24 Jan 2008
+**Date:** 14 Feb 2008
 
 This is an implementation of the popular text markup language Markdown in pure Lua.
 Markdown can convert documents written in a simple and easy to read text format
@@ -62,7 +62,9 @@ THE SOFTWARE.
 
 ## Version history
 
--   **0.26** -- 06 Feb 2008
+-	**0.27** -- 14 Feb 2008
+	-	Fix for link database links with ()
+-	**0.26** -- 06 Feb 2008
 	-	Fix for nested italic and bold markers
 -	**0.25** -- 24 Jan 2008
 	-	Fix for encoding of naked <
@@ -1078,9 +1080,13 @@ function strip_link_definitions(text)
 	end
 
 	local def_no_title = "\n ? ? ?(%b[]):[ \t]*\n?[ \t]*<?([^%s>]+)>?"
-	local def_title = def_no_title .. "[ \t]*\n?[ \t]*[\"'(]([^\n]+)[\"')]"
+	local def_title1 = def_no_title .. "[ \t]+\n?[ \t]*[\"'(]([^\n]+)[\"')]"
+	local def_title2 = def_no_title .. "[ \t]*\n[ \t]*[\"'(]([^\n]+)[\"')]"
+	local def_title3 = def_no_title .. "[ \t]*\n?[ \t]+[\"'(]([^\n]+)[\"')]"
 	
-	text = text:gsub(def_title, link_def)
+	text = text:gsub(def_title1, link_def)
+	text = text:gsub(def_title2, link_def)
+	text = text:gsub(def_title3, link_def)
 	text = text:gsub(def_no_title, link_def)
 	return text, linkdb
 end
