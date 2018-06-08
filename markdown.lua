@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
 --[[
-# markdown.lua -- version 0.30
+# markdown.lua -- version 0.31
 
 <http://www.frykholm.se/files/markdown.lua>
 
@@ -62,6 +62,8 @@ THE SOFTWARE.
 
 ## Version history
 
+-	**0.31** -- 1 Mar 2008
+	-	Fix for link definitions followed by spaces
 -	**0.30** -- 25 Feb 2008
 	-	Consistent behavior with Markdown when the same link reference is reused
 -	**0.29** -- 24 Feb 2008
@@ -1093,10 +1095,10 @@ function strip_link_definitions(text)
 		return ""
 	end
 
-	local def_no_title = "\n ? ? ?(%b[]):[ \t]*\n?[ \t]*<?([^%s>]+)>?"
-	local def_title1 = def_no_title .. "[ \t]+\n?[ \t]*[\"'(]([^\n]+)[\"')]"
-	local def_title2 = def_no_title .. "[ \t]*\n[ \t]*[\"'(]([^\n]+)[\"')]"
-	local def_title3 = def_no_title .. "[ \t]*\n?[ \t]+[\"'(]([^\n]+)[\"')]"
+	local def_no_title = "\n ? ? ?(%b[]):[ \t]*\n?[ \t]*<?([^%s>]+)>?[ \t]*"
+	local def_title1 = def_no_title .. "[ \t]+\n?[ \t]*[\"'(]([^\n]+)[\"')][ \t]*"
+	local def_title2 = def_no_title .. "[ \t]*\n[ \t]*[\"'(]([^\n]+)[\"')][ \t]*"
+	local def_title3 = def_no_title .. "[ \t]*\n?[ \t]+[\"'(]([^\n]+)[\"')][ \t]*"
 	
 	text = text:gsub(def_title1, link_def)
 	text = text:gsub(def_title2, link_def)
