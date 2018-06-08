@@ -1,10 +1,10 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "markdown"
-version = "0.32-1"
+version = "0.32-2"
 -- LuaDist source
 source = {
-  tag = "0.32-1",
+  tag = "0.32-2",
   url = "git://github.com/LuaDist-testing/markdown.git"
 }
 -- Original source
@@ -16,7 +16,9 @@ description = {
    summary = "Markdown text-to-html markup system.",
    detailed = [[
       A pure-lua implementation of the Markdown text-to-html markup system.
-   ]]
+   ]],
+   license = "MIT",
+   homepage = "http://www.frykholm.se/files/markdown.lua"
 }
 dependencies = {
    "lua >= 5.1",
