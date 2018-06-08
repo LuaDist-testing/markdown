@@ -1,12 +1,12 @@
 #!/usr/bin/env lua
 
 --[[
-# markdown.lua -- version 0.13
+# markdown.lua -- version 0.26
 
 <http://www.frykholm.se/files/markdown.lua>
 
 **Author:** Niklas Frykholm, <niklas@frykholm.se>  
-**Date:** 15 May 2006
+**Date:** 24 Jan 2008
 
 This is an implementation of the popular text markup language Markdown in pure Lua.
 Markdown can convert documents written in a simple and easy to read text format
@@ -41,7 +41,7 @@ For a description of the command-line options.
 
 ## License
 
-Copyright &copy; 2006 Niklas Frykholm.
+Copyright &copy; 2008 Niklas Frykholm.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this
 software and associated documentation files (the "Software"), to deal in the Software
@@ -62,7 +62,33 @@ THE SOFTWARE.
 
 ## Version history
 
--   **0.13** -- 12 Aug 2006
+-   **0.26** -- 06 Feb 2008
+	-	Fix for nested italic and bold markers
+-	**0.25** -- 24 Jan 2008
+	-	Fix for encoding of naked <
+-	**0.24** -- 21 Jan 2008
+	-	Fix for link behavior.
+-	**0.23** -- 10 Jan 2008
+	-	Fix for a regression bug in longer expressions in italic or bold.
+-	**0.22** -- 27 Dec 2007
+	-	Fix for crash when processing blocks with a percent sign in them.
+-	**0.21** -- 27 Dec 2007
+	- 	Fix for combined strong and emphasis tags
+-	**0.20** -- 13 Oct 2007
+	-	Fix for < as well in image titles, now matches Dingus behavior
+-	**0.19** -- 28 Sep 2007
+	-	Fix for quotation marks " and ampersands & in link and image titles.
+-	**0.18** -- 28 Jul 2007
+	-	Does not crash on unmatched tags (behaves like standard markdown)
+-	**0.17** -- 12 Apr 2007
+	-	Fix for links with %20 in them.
+-	**0.16** -- 12 Apr 2007
+	-	Do not require arg global to exist.
+-	**0.15** -- 28 Aug 2006
+	-	Better handling of links with underscores in them.
+-	**0.14** -- 22 Aug 2006
+	-	Bug for *`foo()`*
+-	**0.13** -- 12 Aug 2006
 	-	Added -l option for including stylesheet inline in document.
 	-	Fixed bug in -s flag.
 	-	Fixed emphasis bug.
@@ -210,9 +236,14 @@ function tokenize_html(html)
 		else
 			_,stop = html:find("%b<>", start)
 		end
-		if not stop then error("Could not match html tags") end
-		table.insert(tokens, {type="tag", text=html:sub(start, stop)})
-		pos = stop + 1
+		if not stop then
+			-- error("Could not match html tag " .. html:sub(start,start+30)) 
+		 	table.insert(tokens, {type="text", text=html:sub(start, start)})
+			pos = start + 1
+		else
+			table.insert(tokens, {type="tag", text=html:sub(start, stop)})
+			pos = stop + 1
+		end
 	end
 	return tokens
 end
@@ -349,6 +380,7 @@ end
 -- Unprotects the specified text by expanding all the nonces
 function unprotect(text)
 	for k,v in pairs(PD.blocks) do
+		v = v:gsub("%%", "%%%%")
 		text = text:gsub(k, v)
 	end
 	return text
@@ -736,11 +768,20 @@ escape_chars = "'\\`*_{}[]()>#+-.!'"
 escape_table = {}
 
 function init_escape_table()
+	escape_table = {}
 	for i = 1,#escape_chars do
 		local c = escape_chars:sub(i,i)
 		escape_table[c] = hash(c)
 	end
 end
+
+-- Adds a new escape to the escape table.
+function add_escape(text)
+	if not escape_table[text] then
+		escape_table[text] = hash(text)
+	end
+	return escape_table[text]
+end	
 
 -- Escape characters that should not be disturbed by markdown.
 function escape_special_chars(text)
@@ -772,9 +813,12 @@ end
 
 -- Unescape characters that have been encoded.
 function unescape_special_chars(t)
+	local tin = t
 	for k,v in pairs(escape_table) do
+		k = k:gsub("%%", "%%%%")
 		t = t:gsub(v,k)
 	end
+	if t ~= tin then t = unescape_special_chars(t) end
 	return t
 end
 
@@ -811,6 +855,7 @@ function code_spans(s)
 			code = code:gsub(escape_table["\\"], escape_table["\\"] .. escape_table["\\"])
 			code = code:gsub(escape_table["`"], escape_table["\\"] .. escape_table["`"])
 			code = "<code>" .. encode_code(code) .. "</code>"
+			code = add_escape(code)
 			s = s:sub(1, start-1) .. code .. s:sub(estop+1)
 			pos = start + code:len()
 		else
@@ -820,34 +865,43 @@ function code_spans(s)
 	return s
 end
 
+-- Encode alt text... enodes &, and ".
+function encode_alt(s)
+	if not s then return s end
+	s = s:gsub('&', '&amp;')
+	s = s:gsub('"', '&quot;')
+	s = s:gsub('<', '&lt;')
+	return s
+end
+
 -- Handle image references
 function images(text)
 	local function reference_link(alt, id)
-		alt = alt:match("%[(.*)%]")
+		alt = encode_alt(alt:match("%[(.*)%]"))
 		id = id:match("%[(.*)%]"):lower()
 		if id == "" then id = text:lower() end
 		link_database[id] = link_database[id] or {}
 		if not link_database[id].url then return nil end
 		local url = link_database[id].url or id
-		local title = link_database[id].title
+		local title = encode_alt(link_database[id].title)
 		if title then title = " title=\"" .. title .. "\"" else title = "" end
-		return '<img src="' .. url .. '" alt="' .. alt .. '"' .. title .. "/>"
+		return add_escape ('<img src="' .. url .. '" alt="' .. alt .. '"' .. title .. "/>")
 	end
 	
 	local function inline_link(alt, link)
-		alt = alt:match("%[(.-)%]")
+		alt = encode_alt(alt:match("%[(.-)%]"))
 		local url, title = link:match("%(<?(.-)>?[ \t]*['\"](.+)['\"]")
 		url = url or link:match("%(<?(.-)>?%)")
+		title = encode_alt(title)
 		if title then
-			title = title:gsub('"', '&quot;')
-			return '<img src="' .. url .. '" alt="' .. alt .. '" title="' .. title .. '"/>'
+			return add_escape('<img src="' .. url .. '" alt="' .. alt .. '" title="' .. title .. '"/>')
 		else
-			return '<img src="' .. url .. '" alt="' .. alt .. '"/>'
+			return add_escape('<img src="' .. url .. '" alt="' .. alt .. '"/>')
 		end
 	end
 	
 	text = text:gsub("!(%b[])[ \t]*\n?[ \t]*(%b[])", reference_link)
-	text = text:gsub("!(%b[])[ \t]*\n?[ \t]*(%b())", inline_link)
+	text = text:gsub("!(%b[])(%b())", inline_link)
 	return text
 end
 
@@ -860,32 +914,32 @@ function anchors(text)
 		link_database[id] = link_database[id] or {}
 		if not link_database[id].url then return nil end
 		local url = link_database[id].url or id
-		local title = link_database[id].title
+		local title = encode_alt(link_database[id].title)
 		if title then title = " title=\"" .. title .. "\"" else title = "" end
-		return "<a href=\"" .. url .. "\"" .. title .. ">" .. text .. "</a>"
+		return add_escape("<a href=\"" .. url .. "\"" .. title .. ">") .. text .. add_escape("</a>")
 	end
 	
 	local function inline_link(text, link)
 		text = text:match("%[(.-)%]")
 		local url, title = link:match("%(<?(.-)>?[ \t]*['\"](.+)['\"]")
+		title = encode_alt(title)
 		url  = url or  link:match("%(<?(.-)>?%)") or ""
 		if title then
-			title = title:gsub('"', '&quot;')
-			return "<a href=\"" .. url .. "\" title=\"" .. title .. "\">" .. text .. "</a>"
+			return add_escape("<a href=\"" .. url .. "\" title=\"" .. title .. "\">") .. text .. "</a>"
 		else
-			return "<a href=\"" .. url .. "\">" .. text .. "</a>"
+			return add_escape("<a href=\"" .. url .. "\">") .. text .. add_escape("</a>")
 		end
 	end
 	
 	text = text:gsub("(%b[])[ \t]*\n?[ \t]*(%b[])", reference_link)
-	text = text:gsub("(%b[])[ \t]*\n?[ \t]*(%b())", inline_link)
+	text = text:gsub("(%b[])(%b())", inline_link)
 	return text
 end
 
 -- Handle auto links, i.e. <http://www.google.com/>.
 function auto_links(text)
 	local function link(s)
-		return "<a href=\"" .. s .. "\">" .. s .. "</a>"
+		return add_escape("<a href=\"" .. s .. "\">") .. s .. "</a>"
 	end
 	-- Encode chars as a mix of dec and hex entitites to (perhaps) fool
 	-- spambots.
@@ -918,7 +972,7 @@ function auto_links(text)
 		s = unescape_special_chars(s)
 		local address = encode_email_address("mailto:" .. s)
 		local text = encode_email_address(s)
-		return "<a href=\"" .. address .. "\">" .. text .. "</a>"
+		return add_escape("<a href=\"" .. address .. "\">") .. text .. "</a>"
 	end
 	-- links
 	text = text:gsub("<(https?:[^'\">%s]+)>", link)
@@ -950,6 +1004,7 @@ function amps_and_angles(s)
 	
 	-- encode naked <'s
 	s = s:gsub("<([^a-zA-Z/?$!])", "&lt;%1")
+	s = s:gsub("<$", "&lt;")
 	
 	-- what about >, nothing done in the original markdown source to handle them
 	return s
@@ -962,8 +1017,10 @@ function emphasis(text)
 		text = text:gsub(s .. "([^%s][^<>]-[^%s][%*%_]?)" .. s, "<strong>%1</strong>")
 	end
 	for _, s in ipairs {"%*", "%_"} do
-		text = text:gsub(s .. "([^%s])" .. s, "<em>%1</em>")
-		text = text:gsub(s .. "([^%s][^<>]-[^%s])" .. s, "<em>%1</em>")
+		text = text:gsub(s .. "([^%s_])" .. s, "<em>%1</em>")
+		text = text:gsub(s .. "(<strong>[^%s_]</strong>)" .. s, "<em>%1</em>")
+		text = text:gsub(s .. "([^%s_][^<>_]-[^%s_])" .. s, "<em>%1</em>")
+		text = text:gsub(s .. "([^<>_]-<strong>[^<>_]-</strong>[^<>_]-)" .. s, "<em>%1</em>")
 	end
 	return text
 end
@@ -1016,7 +1073,6 @@ function strip_link_definitions(text)
 	
 	local function link_def(id, url, title)
 		id = id:match("%[(.+)%]"):lower()
-		if title then title = title:gsub('"', '&quot;') end
 		linkdb[id] = {url = url, title = title}
 		return ""
 	end
@@ -1272,7 +1328,7 @@ Other options:
 end
 	
 -- If we are being run from the command-line, act accordingly
-if arg[0]:find("markdown%.lua$") then
+if arg and arg[0]:find("markdown%.lua$") then
 	run_command_line(arg)
 else
 	return markdown

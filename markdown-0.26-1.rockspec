@@ -1,15 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "markdown"
-version = "0.13-1"
+version = "0.26-1"
 -- LuaDist source
 source = {
-  tag = "0.13-1",
+  tag = "0.26-1",
   url = "git://github.com/LuaDist-testing/markdown.git"
 }
 -- Original source
 -- source = {
---    url = "http://luaforge.net/frs/download.php/1702/markdown-0.13.tar.gz"
+--    url = "http://www.frykholm.se/files/markdown.lua",
+--    md5 = "66770f22185abc6340ca3dabafc02911"
 -- }
 description = {
    summary = "Markdown text-to-html markup system.",
