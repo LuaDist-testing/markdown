@@ -1,12 +1,12 @@
 #!/usr/bin/env lua
 
 --[[
-# markdown.lua -- version 0.27
+# markdown.lua -- version 0.30
 
 <http://www.frykholm.se/files/markdown.lua>
 
 **Author:** Niklas Frykholm, <niklas@frykholm.se>  
-**Date:** 14 Feb 2008
+**Date:** 25 Feb 2008
 
 This is an implementation of the popular text markup language Markdown in pure Lua.
 Markdown can convert documents written in a simple and easy to read text format
@@ -62,6 +62,12 @@ THE SOFTWARE.
 
 ## Version history
 
+-	**0.30** -- 25 Feb 2008
+	-	Consistent behavior with Markdown when the same link reference is reused
+-	**0.29** -- 24 Feb 2008
+	-	Fix for <pre> blocks with spaces in them
+-	**0.28** -- 18 Feb 2008
+	-	Fix for link encoding
 -	**0.27** -- 14 Feb 2008
 	-	Fix for link database links with ()
 -	**0.26** -- 06 Feb 2008
@@ -526,14 +532,16 @@ function lists(array, sublist)
 			end
 			if block then
 				itemtext = block_transform(itemtext, true)
-				return "    <li>" .. indent(itemtext) .. "</li>"
+				if not itemtext:find("<pre>") then itemtext = indent(itemtext) end
+				return "    <li>" .. itemtext .. "</li>"
 			else
 				local lines = split(itemtext)
 				lines = map(lines, classify)
 				lines = lists(lines, true)
 				lines = blocks_to_html(lines, true)
 				itemtext = table.concat(lines, "\n")
-				return "    <li>" .. indent(itemtext) .. "</li>"
+				if not itemtext:find("<pre>") then itemtext = indent(itemtext) end
+				return "    <li>" .. itemtext .. "</li>"
 			end
 		end
 		
@@ -885,6 +893,7 @@ function images(text)
 		link_database[id] = link_database[id] or {}
 		if not link_database[id].url then return nil end
 		local url = link_database[id].url or id
+		url = encode_alt(url)
 		local title = encode_alt(link_database[id].title)
 		if title then title = " title=\"" .. title .. "\"" else title = "" end
 		return add_escape ('<img src="' .. url .. '" alt="' .. alt .. '"' .. title .. "/>")
@@ -894,6 +903,7 @@ function images(text)
 		alt = encode_alt(alt:match("%[(.-)%]"))
 		local url, title = link:match("%(<?(.-)>?[ \t]*['\"](.+)['\"]")
 		url = url or link:match("%(<?(.-)>?%)")
+		url = encode_alt(url)
 		title = encode_alt(title)
 		if title then
 			return add_escape('<img src="' .. url .. '" alt="' .. alt .. '" title="' .. title .. '"/>')
@@ -916,6 +926,7 @@ function anchors(text)
 		link_database[id] = link_database[id] or {}
 		if not link_database[id].url then return nil end
 		local url = link_database[id].url or id
+		url = encode_alt(url)
 		local title = encode_alt(link_database[id].title)
 		if title then title = " title=\"" .. title .. "\"" else title = "" end
 		return add_escape("<a href=\"" .. url .. "\"" .. title .. ">") .. text .. add_escape("</a>")
@@ -926,6 +937,7 @@ function anchors(text)
 		local url, title = link:match("%(<?(.-)>?[ \t]*['\"](.+)['\"]")
 		title = encode_alt(title)
 		url  = url or  link:match("%(<?(.-)>?%)") or ""
+		url = encode_alt(url)
 		if title then
 			return add_escape("<a href=\"" .. url .. "\" title=\"" .. title .. "\">") .. text .. "</a>"
 		else
@@ -1075,7 +1087,9 @@ function strip_link_definitions(text)
 	
 	local function link_def(id, url, title)
 		id = id:match("%[(.+)%]"):lower()
-		linkdb[id] = {url = url, title = title}
+		linkdb[id] = linkdb[id] or {}
+		linkdb[id].url = url or linkdb[id].url
+		linkdb[id].title = title or linkdb[id].title
 		return ""
 	end
 
